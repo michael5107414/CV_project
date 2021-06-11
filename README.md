@@ -1,7 +1,7 @@
 # softmax-splatting
 This is a reference implementation of the softmax splatting operator, which has been proposed in Softmax Splatting for Video Frame Interpolation [1], using PyTorch. Softmax splatting is a well-motivated approach for differentiable forward warping. It uses a translational invariant importance metric to disambiguate cases where multiple source pixels map to the same target pixel. Should you be making use of our work, please cite our paper [1].
 
-<a href="https://arxiv.org/abs/2003.05534" rel="Paper"><img src="http://content.sniklaus.com/softsplat/paper.jpg" alt="Paper" width="100%"></a>
+<a href="https://www.notion.so/Docs-c14e1d54b44c4482a1c8f4138e2b108e"><img src="https://i.ibb.co/Tm24JNB/2021-06-11-8-16-55.png" width="100%" alt="2021-06-11-8-16-55" border="0"></a>
 
 ## setup
 The softmax splatting is implemented in CUDA using CuPy, which is why CuPy is a required dependency. It can be installed using `pip install cupy` or alternatively using one of the provided [binary packages](https://docs.cupy.dev/en/stable/install.html#installing-cupy) as outlined in the CuPy repository.
