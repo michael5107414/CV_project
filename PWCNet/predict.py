@@ -54,19 +54,19 @@ if __name__ == '__main__':
     nn.print_config()
 
     parser = argparse.ArgumentParser()
-    parser.add_argument('--task', type=str, choices=['validation', 'test'], required=True)
+    parser.add_argument('--task', type=str, choices=['validation', 'testing'], required=True)
     args = parser.parse_args()
 
     if (args.task == 'validation'):
         dir_path = [[i for i in range(7)],[i for i in range(3)], [i for i in range(3)]]
     else:
-        dir_path = [[i for i in range(7,12)],[i for i in range(3,5)], [i for i in range(3,5)]]
+        dir_path = [[i for i in range(7,17)],[i for i in range(3,5)], [i for i in range(3,5)]]
 
     print("produce task1 flow...")
     for num in dir_path[0]:
         data_dir = f'../data/{args.task}/0_center_frame/{num}/input'
         flow_generate(data_dir, 'frame10.png', 'frame11.png')
-
+    
     print("produce task2 flow...")
     data_dir = f'../data/{args.task}/1_30fps_to_240fps'
     for outer in dir_path[1]:
@@ -79,3 +79,4 @@ if __name__ == '__main__':
         for inner in range(8):
             data_dir = f'../data/{args.task}/2_24fps_to_60fps/{outer}/{inner}/input'
             flow_generate(data_dir, f'{str(inner*10).zfill(5)}.jpg', f'{str(inner*10+10).zfill(5)}.jpg')
+    
