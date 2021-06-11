@@ -1,0 +1,25 @@
+----------------------------------------------------------------
+0_center_frame/0/GT/frame10i11.png  | PSNR:41.867 | SSIM:0.993 |
+0_center_frame/1/GT/frame10i11.png  | PSNR:35.938 | SSIM:0.987 |
+0_center_frame/2/GT/frame10i11.png  | PSNR:31.503 | SSIM:0.960 |
+0_center_frame/3/GT/frame10i11.png  | PSNR:28.369 | SSIM:0.936 |
+0_center_frame/4/GT/frame10i11.png  | PSNR:33.264 | SSIM:0.964 |
+0_center_frame/5/GT/frame10i11.png  | PSNR:31.627 | SSIM:0.965 |
+0_center_frame/6/GT/frame10i11.png  | PSNR:31.062 | SSIM:0.947 |
+----------------------------------------------------------------
+----------------------------------------------------------------
+1_30fps_to_240fps/0/0/GT/00001.jpg  | PSNR:15.608 | SSIM:0.530 |
+1_30fps_to_240fps/0/0/GT/00002.jpg  | PSNR:14.709 | SSIM:0.515 |
+1_30fps_to_240fps/0/0/GT/00003.jpg  | PSNR:14.129 | SSIM:0.502 |
+1_30fps_to_240fps/0/0/GT/00004.jpg  | PSNR:13.767 | SSIM:0.496 |
+1_30fps_to_240fps/0/0/GT/00005.jpg  | PSNR:13.918 | SSIM:0.505 |
+1_30fps_to_240fps/0/0/GT/00006.jpg  | PSNR:14.280 | SSIM:0.505 |
+1_30fps_to_240fps/0/0/GT/00007.jpg  | PSNR:15.208 | SSIM:0.527 |
+1_30fps_to_240fps/0/1/GT/00009.jpg  | PSNR:18.720 | SSIM:0.632 |
+1_30fps_to_240fps/0/1/GT/00010.jpg  | PSNR:19.385 | SSIM:0.667 |
+1_30fps_to_240fps/0/1/GT/00011.jpg  | PSNR:21.691 | SSIM:0.765 |
+1_30fps_to_240fps/0/1/GT/00012.jpg  | PSNR:19.243 | SSIM:0.624 |
+1_30fps_to_240fps/0/1/GT/00013.jpg  | PSNR:17.774 | SSIM:0.559 |
+1_30fps_to_240fps/0/1/GT/00014.jpg  | PSNR:20.129 | SSIM:0.688 |
+1_30fps_to_240fps/0/1/GT/00015.jpg  | PSNR:23.310 | SSIM:0.823 |
+1_30fps_to_240fps/0/2/GT/00017.jpg  | PSNR:18.389 | SSIM:0.595 |

@@ -1,0 +1,5 @@
+cupy>=5.0.0
+numpy>=1.15.0
+opencv-contrib-python>=3.4.0
+torch>=1.6.0
+tensorflow==1.13.1 (fail if higher than 1.15)
