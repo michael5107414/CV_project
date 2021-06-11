@@ -119,6 +119,7 @@ if __name__ == '__main__':
     #Task1
     ##################################
     if not args.skip_task0:
+        print("task 0 start...")
         data_dir = f'data/{args.task}/0_center_frame'
         task_dir = f'{args.save_dir}/{args.task}/0_center_frame'
         if not os.path.isdir(task_dir):
@@ -137,8 +138,10 @@ if __name__ == '__main__':
 
             img = image_generate(0.5, tenFirst, tenSecond, tenFlow01, tenFlow10)
             cv2.imwrite(f'{task_dir}/{num}/frame10i11.jpg', img, [int(cv2.IMWRITE_JPEG_QUALITY), 100])
+        print("task 0 finish.")
 
     if not args.skip_task1:
+        print("task 1 start...")
         data_dir = f'data/{args.task}/1_30fps_to_240fps'
         task_dir = f'{args.save_dir}/{args.task}/1_30fps_to_240fps'
         if not os.path.isdir(task_dir):
@@ -161,6 +164,8 @@ if __name__ == '__main__':
                 for stamp in range(1,8):
                     img = image_generate(stamp/8, tenFirst, tenSecond, tenFlow01, tenFlow10)
                     cv2.imwrite(f'{task_dir}/{outer}/{inner}/{str(start+stamp).zfill(5)}.jpg', img, [int(cv2.IMWRITE_JPEG_QUALITY), 100])
+            print(f"subtask 1-{outer} finish.")
+        print("task 1 finish.")
 
     if not args.skip_task2:
         data_dir = f'data/{args.task}/2_24fps_to_60fps'
@@ -185,3 +190,5 @@ if __name__ == '__main__':
                 for stamp in [4-start%4, 8-start%4]:
                     img = image_generate(stamp/10, tenFirst, tenSecond, tenFlow01, tenFlow10)
                     cv2.imwrite(f'{task_dir}/{outer}/{inner}/{str(start+stamp).zfill(5)}.jpg', img, [int(cv2.IMWRITE_JPEG_QUALITY), 100])
+            print(f"subtask 2-{outer} finish.")
+        print("task 2 finish.")
