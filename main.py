@@ -99,7 +99,7 @@ def image_generate(fltTime, tenFirst, tenSecond, tenFlow01, tenFlow10):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--save_dir', type=str, default='result')
-    parser.add_argument('--task', type=str, default='validation', choices=['validation', 'test'])
+    parser.add_argument('--task', type=str, default='validation', choices=['validation', 'testing'])
     parser.add_argument('--skip-task0', action='store_true')
     parser.add_argument('--skip-task1', action='store_true')
     parser.add_argument('--skip-task2', action='store_true')
@@ -108,7 +108,7 @@ if __name__ == '__main__':
     if (args.task == 'validation'):
         dir_path = [[i for i in range(7)],[i for i in range(3)], [i for i in range(3)]]
     else:
-        dir_path = [[i for i in range(7,12)],[i for i in range(3,5)], [i for i in range(3,5)]]
+        dir_path = [[i for i in range(7,17)],[i for i in range(3,5)], [i for i in range(3,5)]]
 
     if not os.path.isdir(args.save_dir):
         os.mkdir(args.save_dir)
