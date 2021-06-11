@@ -112,7 +112,7 @@ if __name__ == '__main__':
                 tenFlow10 = torch.FloatTensor(numpy.ascontiguousarray(read_flo(f'{info_path}/flow10.flo').transpose(2, 0, 1)[None, :, :, :])).cuda()
 
                 for stamp in range(1,8):
-                    image_generate(stamp/8, tenFirst, tenSecond, tenFlow01, tenFlow10)
+                    img =image_generate(stamp/8, tenFirst, tenSecond, tenFlow01, tenFlow10)
                     cv2.imwrite(f'{task_dir}/{outer}/{inner}/{str(start+stamp).zfill(5)}.jpg', img)
 
     if not args.skip_task2:
