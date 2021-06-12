@@ -1,7 +1,7 @@
 import torch
 import cv2
 import numpy
-import softsplat
+from .softsplat import FunctionSoftsplat
 
 backwarp_tenGrid = {}
 def backwarp(tenInput, tenFlow):
@@ -31,26 +31,26 @@ def backwarp_map(flowt0, flowt1, tenFirst, tenSecond):
         flow[1,:,:] += numpy.arange(flow.shape[1])[:,numpy.newaxis]
         img.append(cv2.remap(tenFirst.cpu().numpy().squeeze().transpose(1,2,0).astype(numpy.float32), flowt0.transpose(1,2,0).astype(numpy.float32), None, cv2.INTER_LINEAR).transpose(2,0,1))
     
-    return backwardimgt0, backwardimgt1
+    return img
 
 
 def image_generate(fltTime, tenFirst, tenSecond, tenFlow01, tenFlow10, hole_fill=False):
     tenMetric = torch.nn.functional.l1_loss(input=tenFirst, target=backwarp(tenInput=tenSecond, tenFlow=tenFlow01), reduction='none').mean(1, True)
-    tenSoftmax01 = softsplat.FunctionSoftsplat(tenInput=tenFirst, tenFlow=tenFlow01 * fltTime, tenMetric=-20.0 * tenMetric, strType='softmax') # -20.0 is a hyperparameter, called 'alpha' in the paper, that could be learned using a torch.Parameter
+    tenSoftmax01 = FunctionSoftsplat(tenInput=tenFirst, tenFlow=tenFlow01 * fltTime, tenMetric=-20.0 * tenMetric, strType='softmax') # -20.0 is a hyperparameter, called 'alpha' in the paper, that could be learned using a torch.Parameter
     tenSoftmax01 = tenSoftmax01[0, :, :, :].cpu().numpy()
     ######################## Flowt0 ################################
-    flowt0 = -softsplat.FunctionSoftsplat(tenInput=tenFlow01, tenFlow=tenFlow01 * fltTime, tenMetric=-20.0 * tenMetric, strType='softmax')[0, :, :, :].cpu().numpy()
+    flowt0 = -FunctionSoftsplat(tenInput=tenFlow01, tenFlow=tenFlow01 * fltTime, tenMetric=-20.0 * tenMetric, strType='softmax')[0, :, :, :].cpu().numpy()
     ################################################################
     
     tenMetric = torch.nn.functional.l1_loss(input=tenSecond, target=backwarp(tenInput=tenFirst, tenFlow=tenFlow10), reduction='none').mean(1, True)
-    tenSoftmax10 = softsplat.FunctionSoftsplat(tenInput=tenSecond, tenFlow=tenFlow10 * (1-fltTime), tenMetric=-20.0 * tenMetric, strType='softmax')
+    tenSoftmax10 = FunctionSoftsplat(tenInput=tenSecond, tenFlow=tenFlow10 * (1-fltTime), tenMetric=-20.0 * tenMetric, strType='softmax')
     tenSoftmax10 = tenSoftmax10[0, :, :, :].cpu().numpy()
     ######################## Flowt1 ################################
-    flowt1 = -softsplat.FunctionSoftsplat(tenInput=tenFlow10, tenFlow=tenFlow10 * (1-fltTime), tenMetric=-20.0 * tenMetric, strType='softmax')[0, :, :, :].cpu().numpy()
+    flowt1 = -FunctionSoftsplat(tenInput=tenFlow10, tenFlow=tenFlow10 * (1-fltTime), tenMetric=-20.0 * tenMetric, strType='softmax')[0, :, :, :].cpu().numpy()
     ################################################################
     
     ################# Cal backwarp and hole ########################
-    backwardimgt0, backwardimgt1 = backwarp_img_generate(flowt0, flowt1, tenFirst, tenSecond)
+    backwardimgt0, backwardimgt1 = backwarp_map(flowt0, flowt1, tenFirst, tenSecond)
     Hole01 = numpy.where((tenSoftmax01[0,:,:]==0)&(tenSoftmax01[1,:,:]==0)&(tenSoftmax01[2,:,:]==0), True, False)
     Hole10 = numpy.where((tenSoftmax10[0,:,:]==0)&(tenSoftmax10[1,:,:]==0)&(tenSoftmax10[2,:,:]==0), True, False)
     Hole = Hole01 & Hole10
