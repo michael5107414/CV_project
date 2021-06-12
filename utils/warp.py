@@ -27,28 +27,51 @@ def backwarp_map(flowt0, flowt1, tenFirst, tenSecond):
         neighbor = pad_flow[:,0:-2,1:-1] + pad_flow[:,2:,1:-1] + pad_flow[:,1:-1,0:-2] + pad_flow[:,1:-1,2:]
         flow = numpy.where(hole, neighbor/weight, flow)
 
-        flow[0,:,:] = numpy.arange(flowt0.shape[2])
+        flow[0,:,:] += numpy.arange(flow.shape[2])
         flow[1,:,:] += numpy.arange(flow.shape[1])[:,numpy.newaxis]
-        img.append(cv2.remap(tenFirst.cpu().numpy().squeeze().transpose(1,2,0).astype(numpy.float32), flowt0.transpose(1,2,0).astype(numpy.float32), None, cv2.INTER_LINEAR).transpose(2,0,1))
+        img.append(cv2.remap(data.cpu().numpy().squeeze().transpose(1,2,0).astype(numpy.float32), flow.transpose(1,2,0).astype(numpy.float32), None, cv2.INTER_LINEAR).transpose(2,0,1))
     
     return img
 
 
-def image_generate(fltTime, tenFirst, tenSecond, tenFlow01, tenFlow10, hole_fill=False):
+def image_generate(fltTime, tenFirst, tenSecond, tenFlow01, tenFlow10, hole_fill=True):
+    ###################### Range Map0 ##############################
+    Occlusion_map0 = range_map(tenFlow10)
+    tenFlow01_new = tenFlow01.cpu().numpy()
+    tenFlow01_new =  torch.from_numpy(numpy.where(Occlusion_map0, 0, tenFlow01_new)).cuda()
+    tenFirst_new = tenFirst.cpu().numpy()
+    tenFirst_new =  torch.from_numpy(numpy.where(Occlusion_map0, 0, tenFirst_new)).cuda()
+    #tenFlow01 = tenFlow01_new
+    ################################################################
+    ###################### Range Map1 ##############################
+    Occlusion_map1 = range_map(tenFlow01)
+    tenFlow10_new = tenFlow10.cpu().numpy()
+    tenFlow10_new =  torch.from_numpy(numpy.where(Occlusion_map1, 0, tenFlow10_new)).cuda()
+    tenSecond_new = tenSecond.cpu().numpy()
+    tenSecond_new =  torch.from_numpy(numpy.where(Occlusion_map0, 0, tenSecond_new)).cuda()
+    #tenFlow10 = tenFlow10_new
+    ################################################################
+    
+    #################### Metric Calculate ##########################
     tenMetric = torch.nn.functional.l1_loss(input=tenFirst, target=backwarp(tenInput=tenSecond, tenFlow=tenFlow01), reduction='none').mean(1, True)
-    tenSoftmax01 = FunctionSoftsplat(tenInput=tenFirst, tenFlow=tenFlow01 * fltTime, tenMetric=-20.0 * tenMetric, strType='softmax') # -20.0 is a hyperparameter, called 'alpha' in the paper, that could be learned using a torch.Parameter
-    tenSoftmax01 = tenSoftmax01[0, :, :, :].cpu().numpy()
     ######################## Flowt0 ################################
     flowt0 = -FunctionSoftsplat(tenInput=tenFlow01, tenFlow=tenFlow01 * fltTime, tenMetric=-20.0 * tenMetric, strType='softmax')[0, :, :, :].cpu().numpy()
     ################################################################
+    ################## Forward Warping Image #######################
+    tenSoftmax01 = FunctionSoftsplat(tenInput=tenFirst, tenFlow=tenFlow01 * fltTime, tenMetric=-20.0 * tenMetric, strType='softmax') # -20.0 is a hyperparameter, called 'alpha' in the paper, that could be learned using a torch.Parameter
+    tenSoftmax01 = tenSoftmax01[0, :, :, :].cpu().numpy()
+    ################################################################
     
+    #################### Metric Calculate ##########################
     tenMetric = torch.nn.functional.l1_loss(input=tenSecond, target=backwarp(tenInput=tenFirst, tenFlow=tenFlow10), reduction='none').mean(1, True)
-    tenSoftmax10 = FunctionSoftsplat(tenInput=tenSecond, tenFlow=tenFlow10 * (1-fltTime), tenMetric=-20.0 * tenMetric, strType='softmax')
-    tenSoftmax10 = tenSoftmax10[0, :, :, :].cpu().numpy()
     ######################## Flowt1 ################################
     flowt1 = -FunctionSoftsplat(tenInput=tenFlow10, tenFlow=tenFlow10 * (1-fltTime), tenMetric=-20.0 * tenMetric, strType='softmax')[0, :, :, :].cpu().numpy()
     ################################################################
-    
+    ################## Forward Warping Image #######################
+    tenSoftmax10 = FunctionSoftsplat(tenInput=tenSecond, tenFlow=tenFlow10 * (1-fltTime), tenMetric=-20.0 * tenMetric, strType='softmax')
+    tenSoftmax10 = tenSoftmax10[0, :, :, :].cpu().numpy()
+    ################################################################
+
     ################# Cal backwarp and hole ########################
     backwardimgt0, backwardimgt1 = backwarp_map(flowt0, flowt1, tenFirst, tenSecond)
     Hole01 = numpy.where((tenSoftmax01[0,:,:]==0)&(tenSoftmax01[1,:,:]==0)&(tenSoftmax01[2,:,:]==0), True, False)
@@ -65,3 +88,12 @@ def image_generate(fltTime, tenFirst, tenSecond, tenFlow01, tenFlow10, hole_fill
         tenSoftmax = numpy.where(Hole, (backwardimgt0*a1+backwardimgt1*a2), tenSoftmax)
     ################################################################
     return tenSoftmax.transpose(1, 2, 0)*255
+
+
+def range_map(flow):
+    h, w = flow.shape[2], flow.shape[3]
+    src_map = torch.ones((1,1,h,w)).cuda()
+    dst_map = FunctionSoftsplat(tenInput=src_map, tenFlow=flow, tenMetric=None, strType='average')[0,0,:,:].cpu().numpy()
+    
+    Occlusion_map = numpy.where(dst_map==0, True, False)
+    return Occlusion_map
