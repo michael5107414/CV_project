@@ -30,7 +30,7 @@ def backwarp_map(flowt0, flowt1, tenFirst, tenSecond):
         flow[0,:,:] += numpy.arange(flow.shape[2])
         flow[1,:,:] += numpy.arange(flow.shape[1])[:,numpy.newaxis]
         img.append(cv2.remap(data.cpu().numpy().squeeze().transpose(1,2,0).astype(numpy.float32), flow.transpose(1,2,0).astype(numpy.float32), None, cv2.INTER_LINEAR).transpose(2,0,1))
-    
+        
     return img
 
 
@@ -39,6 +39,8 @@ def image_generate(fltTime, tenFirst, tenSecond, tenFlow01, tenFlow10, hole_fill
     Occlusion_map0 = range_map(tenFlow10)
     tenFlow01_new = tenFlow01.cpu().numpy()
     tenFlow01_new =  torch.from_numpy(numpy.where(Occlusion_map0, 0, tenFlow01_new)).cuda()
+    tenFirst_new = tenFirst.cpu().numpy()
+    tenFirst_new =  torch.from_numpy(numpy.where(Occlusion_map0, 0, tenFirst_new)).cuda()
     tenFirst_new = tenFirst.cpu().numpy()
     tenFirst_new =  torch.from_numpy(numpy.where(Occlusion_map0, 0, tenFirst_new)).cuda()
     #tenFlow01 = tenFlow01_new
@@ -55,20 +57,20 @@ def image_generate(fltTime, tenFirst, tenSecond, tenFlow01, tenFlow10, hole_fill
     #################### Metric Calculate ##########################
     tenMetric = torch.nn.functional.l1_loss(input=tenFirst, target=backwarp(tenInput=tenSecond, tenFlow=tenFlow01), reduction='none').mean(1, True)
     ######################## Flowt0 ################################
-    flowt0 = -FunctionSoftsplat(tenInput=tenFlow01, tenFlow=tenFlow01 * fltTime, tenMetric=-20.0 * tenMetric, strType='softmax')[0, :, :, :].cpu().numpy()
+    flowt0 = -FunctionSoftsplat(tenInput=tenFlow01, tenFlow=tenFlow01 * fltTime, tenMetric=-8.0 * tenMetric, strType='softmax')[0, :, :, :].cpu().numpy()
     ################################################################
     ################## Forward Warping Image #######################
-    tenSoftmax01 = FunctionSoftsplat(tenInput=tenFirst, tenFlow=tenFlow01 * fltTime, tenMetric=-20.0 * tenMetric, strType='softmax') # -20.0 is a hyperparameter, called 'alpha' in the paper, that could be learned using a torch.Parameter
+    tenSoftmax01 = FunctionSoftsplat(tenInput=tenFirst, tenFlow=tenFlow01 * fltTime, tenMetric=-8.0 * tenMetric, strType='softmax') # -20.0 is a hyperparameter, called 'alpha' in the paper, that could be learned using a torch.Parameter
     tenSoftmax01 = tenSoftmax01[0, :, :, :].cpu().numpy()
     ################################################################
     
     #################### Metric Calculate ##########################
     tenMetric = torch.nn.functional.l1_loss(input=tenSecond, target=backwarp(tenInput=tenFirst, tenFlow=tenFlow10), reduction='none').mean(1, True)
     ######################## Flowt1 ################################
-    flowt1 = -FunctionSoftsplat(tenInput=tenFlow10, tenFlow=tenFlow10 * (1-fltTime), tenMetric=-20.0 * tenMetric, strType='softmax')[0, :, :, :].cpu().numpy()
+    flowt1 = -FunctionSoftsplat(tenInput=tenFlow10, tenFlow=tenFlow10 * (1-fltTime), tenMetric=-8.0 * tenMetric, strType='softmax')[0, :, :, :].cpu().numpy()
     ################################################################
     ################## Forward Warping Image #######################
-    tenSoftmax10 = FunctionSoftsplat(tenInput=tenSecond, tenFlow=tenFlow10 * (1-fltTime), tenMetric=-20.0 * tenMetric, strType='softmax')
+    tenSoftmax10 = FunctionSoftsplat(tenInput=tenSecond, tenFlow=tenFlow10 * (1-fltTime), tenMetric=-8.0 * tenMetric, strType='softmax')
     tenSoftmax10 = tenSoftmax10[0, :, :, :].cpu().numpy()
     ################################################################
 
