@@ -1,7 +1,7 @@
 import torch
 import cv2
 import numpy
-from .softsplat import FunctionSoftsplat
+from . import softsplat
 
 backwarp_tenGrid = {}
 def backwarp(tenInput, tenFlow):
@@ -57,20 +57,20 @@ def image_generate(fltTime, tenFirst, tenSecond, tenFlow01, tenFlow10, hole_fill
     #################### Metric Calculate ##########################
     tenMetric = torch.nn.functional.l1_loss(input=tenFirst, target=backwarp(tenInput=tenSecond, tenFlow=tenFlow01), reduction='none').mean(1, True)
     ######################## Flowt0 ################################
-    flowt0 = -FunctionSoftsplat(tenInput=tenFlow01, tenFlow=tenFlow01 * fltTime, tenMetric=-8.0 * tenMetric, strType='softmax')[0, :, :, :].cpu().numpy()
+    flowt0 = -softsplat.FunctionSoftsplat(tenInput=tenFlow01, tenFlow=tenFlow01 * fltTime, tenMetric=-8.0 * tenMetric, strType='softmax')[0, :, :, :].cpu().numpy()
     ################################################################
     ################## Forward Warping Image #######################
-    tenSoftmax01 = FunctionSoftsplat(tenInput=tenFirst, tenFlow=tenFlow01 * fltTime, tenMetric=-8.0 * tenMetric, strType='softmax') # -20.0 is a hyperparameter, called 'alpha' in the paper, that could be learned using a torch.Parameter
+    tenSoftmax01 = softsplat.FunctionSoftsplat(tenInput=tenFirst, tenFlow=tenFlow01 * fltTime, tenMetric=-8.0 * tenMetric, strType='softmax') # -20.0 is a hyperparameter, called 'alpha' in the paper, that could be learned using a torch.Parameter
     tenSoftmax01 = tenSoftmax01[0, :, :, :].cpu().numpy()
     ################################################################
     
     #################### Metric Calculate ##########################
     tenMetric = torch.nn.functional.l1_loss(input=tenSecond, target=backwarp(tenInput=tenFirst, tenFlow=tenFlow10), reduction='none').mean(1, True)
     ######################## Flowt1 ################################
-    flowt1 = -FunctionSoftsplat(tenInput=tenFlow10, tenFlow=tenFlow10 * (1-fltTime), tenMetric=-8.0 * tenMetric, strType='softmax')[0, :, :, :].cpu().numpy()
+    flowt1 = -softsplat.FunctionSoftsplat(tenInput=tenFlow10, tenFlow=tenFlow10 * (1-fltTime), tenMetric=-8.0 * tenMetric, strType='softmax')[0, :, :, :].cpu().numpy()
     ################################################################
     ################## Forward Warping Image #######################
-    tenSoftmax10 = FunctionSoftsplat(tenInput=tenSecond, tenFlow=tenFlow10 * (1-fltTime), tenMetric=-8.0 * tenMetric, strType='softmax')
+    tenSoftmax10 = softsplat.FunctionSoftsplat(tenInput=tenSecond, tenFlow=tenFlow10 * (1-fltTime), tenMetric=-8.0 * tenMetric, strType='softmax')
     tenSoftmax10 = tenSoftmax10[0, :, :, :].cpu().numpy()
     ################################################################
 

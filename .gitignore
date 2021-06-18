@@ -1,3 +1,6 @@
 data/
 PWCNet/models/
 result
+.*
+!.gitignore
+__pycache__
