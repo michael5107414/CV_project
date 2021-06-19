@@ -43,8 +43,6 @@ def image_generate(fltTime, tenFirst, tenSecond, tenFlow01, tenFlow10, depth0, d
     tenFlow01_new =  torch.from_numpy(numpy.where(Occlusion_map0, 0, tenFlow01_new)).cuda()
     tenFirst_new = tenFirst.cpu().numpy()
     tenFirst_new =  torch.from_numpy(numpy.where(Occlusion_map0, 0, tenFirst_new)).cuda()
-    tenFirst_new = tenFirst.cpu().numpy()
-    tenFirst_new =  torch.from_numpy(numpy.where(Occlusion_map0, 0, tenFirst_new)).cuda()
     #tenFlow01 = tenFlow01_new
     ################################################################
     ###################### Range Map1 ##############################
@@ -78,15 +76,21 @@ def image_generate(fltTime, tenFirst, tenSecond, tenFlow01, tenFlow10, depth0, d
 
     ################# Cal backwarp and hole ########################
     backwardimgt0, backwardimgt1 = backwarp_map(flowt0, flowt1, tenFirst, tenSecond)
-    Hole01 = numpy.where((tenSoftmax01[0,:,:]==0)&(tenSoftmax01[1,:,:]==0)&(tenSoftmax01[2,:,:]==0), True, False)
-    Hole10 = numpy.where((tenSoftmax10[0,:,:]==0)&(tenSoftmax10[1,:,:]==0)&(tenSoftmax10[2,:,:]==0), True, False)
+    Hole01 = numpy.where((tenSoftmax01[0,:,:]==0)|(tenSoftmax01[1,:,:]==0)|(tenSoftmax01[2,:,:]==0), 1, 0).astype(numpy.uint8)
+    Hole10 = numpy.where((tenSoftmax10[0,:,:]==0)|(tenSoftmax10[1,:,:]==0)|(tenSoftmax10[2,:,:]==0), 1, 0).astype(numpy.uint8)
+    kernel = numpy.ones((3,3), numpy.uint8)
+    #Hole01 = cv2.dilate(Hole01, kernel, iterations = 1)
+    Hole01 = cv2.morphologyEx(Hole01, cv2.MORPH_CLOSE, kernel)
+    #Hole10 = cv2.dilate(Hole10, kernel, iterations = 1)
+    Hole10 = cv2.morphologyEx(Hole10, cv2.MORPH_CLOSE, kernel)
     Hole = Hole01 & Hole10
+    Hole = cv2.morphologyEx(Hole, cv2.MORPH_CLOSE, kernel)
     ################################################################
 
-    tenSoftmax01_mod = numpy.where(tenSoftmax01==0, tenSoftmax10, tenSoftmax01)
+    tenSoftmax01_mod = numpy.where(Hole01==1, tenSoftmax10, tenSoftmax01)
     w1, w2 = numpy.exp(1-fltTime), numpy.exp(fltTime) #1/fltTime, 1/(1-fltTime) 
     a1, a2 = w1/(w1+w2), w2/(w1+w2)
-    tenSoftmax = numpy.where(tenSoftmax10==0, tenSoftmax01, (tenSoftmax01_mod*a1+tenSoftmax10*a2))
+    tenSoftmax = numpy.where(Hole10==1, tenSoftmax01, (tenSoftmax01_mod*a1+tenSoftmax10*a2))
     ######################## Final Image ###########################
     if hole_fill:
         tenSoftmax = numpy.where(Hole, (backwardimgt0*a1+backwardimgt1*a2), tenSoftmax)
