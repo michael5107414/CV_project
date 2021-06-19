@@ -37,10 +37,7 @@ def backwarp_map(flowt0, flowt1, tenFirst, tenSecond):
     return img
 
 
-def image_generate(fltTime, frame_0, frame_1, tenFlow01, tenFlow10, depth0, depth1, Net = None, hole_fill=True, frame_refinement = True):
-    
-    tenFirst = torch.FloatTensor(numpy.ascontiguousarray(cv2.imread(filename=frame_0, flags=-1).transpose(2, 0, 1)[None, :, :, :].astype(numpy.float32) * (1.0 / 255.0))).cuda()
-    tenSecond = torch.FloatTensor(numpy.ascontiguousarray(cv2.imread(filename=frame_1, flags=-1).transpose(2, 0, 1)[None, :, :, :].astype(numpy.float32) * (1.0 / 255.0))).cuda()
+def image_generate(fltTime, tenFirst, tenSecond, tenFlow01, tenFlow10, depth0, depth1, Net = None, hole_fill=True, frame_refinement = True):
     depth0 = torch.from_numpy(depth0.copy()).unsqueeze(0).unsqueeze(0).cuda()
     depth1 = torch.from_numpy(depth1.copy()).unsqueeze(0).unsqueeze(0).cuda()
     
@@ -103,19 +100,18 @@ def image_generate(fltTime, frame_0, frame_1, tenFlow01, tenFlow10, depth0, dept
         tenSoftmax = numpy.where(Hole, (backwardimgt0*a1+backwardimgt1*a2), tenSoftmax)
     ################################################################
     if frame_refinement:
-        transform = transforms.ToTensor()
-        img_0, H, W = frame_preprocess(frame_0)
-        img_1, _, _ = frame_preprocess(frame_1)
-        tmp = tenSoftmax.transpose(1,2,0)
-        tmp = cv2.cvtColor(tmp.astype(numpy.float32), cv2.COLOR_RGB2BGR)
-        tmp = tmp.transpose(2, 0, 1)
-        intermediate = inter_frame_preprocess(tmp)
+        H = tenSoftmax.shape[1]
+        W = tenSoftmax.shape[2]
+
+        img_0 = inter_frame_preprocess(tenFirst, isTensor = True)
+        img_1 = inter_frame_preprocess(tenSecond, isTensor = True)
+        intermediate = inter_frame_preprocess(tenSoftmax)
 
         output = Net(img_0, img_1, intermediate, fltTime)
         output = output[0,:,0:H,0:W].squeeze(0).cpu()
         output = transforms.functional.to_pil_image(output)
         output = np.array(output)
-        return cv2.cvtColor(output, cv2.COLOR_BGR2RGB)
+        return output
     ################################################################
     
     return tenSoftmax.transpose(1, 2, 0)*255
@@ -129,29 +125,17 @@ def range_map(flow):
     Occlusion_map = numpy.where(dst_map==0, True, False)
     return Occlusion_map
 
-def frame_preprocess(img_path):
-    transform = transforms.ToTensor()
-    img = Image.open(img_path)
-    img = transform(img).unsqueeze(0).cuda()
-
-    if img.size(1)==1:
-        img = img1.expand(-1, 3,-1,-1)
-
-    _,_,H,W = img.size()
-    H_,W_ = int(np.ceil(H/32)*32),int(np.ceil(W/32)*32)
-    pader = torch.nn.ReplicationPad2d([0, W_-W , 0, H_-H])
-    img = pader(img)
-    return img, H, W
-
-def inter_frame_preprocess(intermediate):
-    transform = transforms.ToTensor()
-    img = transform(intermediate).unsqueeze(0).cuda()
-    #print(img.size())
-    img = img.permute(0, 2, 3, 1)
-    #print(img.size())
-    if img.size(1)==1:
-        img = img1.expand(-1, 3,-1,-1)
-
+def inter_frame_preprocess(intermediate, isTensor = False):
+    if isTensor == False:
+        transform = transforms.ToTensor()
+        img = transform(intermediate).unsqueeze(0).cuda()
+        img = img.permute(0, 2, 3, 1)
+        print(img.size())
+        if img.size(1)==1:
+            img = img1.expand(-1, 3,-1,-1)
+    else:
+        img = intermediate
+    
     _,_,H,W = img.size()
     H_,W_ = int(np.ceil(H/32)*32),int(np.ceil(W/32)*32)
     pader = torch.nn.ReplicationPad2d([0, W_-W , 0, H_-H])
