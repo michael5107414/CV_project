@@ -130,7 +130,6 @@ def inter_frame_preprocess(intermediate, isTensor = False):
         transform = transforms.ToTensor()
         img = transform(intermediate).unsqueeze(0).cuda()
         img = img.permute(0, 2, 3, 1)
-        print(img.size())
         if img.size(1)==1:
             img = img1.expand(-1, 3,-1,-1)
     else:
