@@ -6,6 +6,7 @@ import numpy
 import os
 from utils import softsplat, warp
 from utils.io import read_pfm
+from RRIN_master.model import Net
 import argparse
 assert(int(str('').join(torch.__version__.split('.')[0:2])) >= 13) # requires at least pytorch version 1.3.0
 
@@ -39,7 +40,13 @@ if __name__ == '__main__':
 
     if not os.path.isdir(f'{args.save_dir}/{args.task}'):
         os.mkdir(f'{args.save_dir}/{args.task}')
-
+    
+    RRIN = Net()
+    state = torch.load('pretrained_model.pth.tar')
+    RRIN.load_state_dict(state,strict=True)
+    RRIN = RRIN.cuda()
+    RRIN.eval()
+    
     #Task1
     ##################################
     if not args.skip_task0:
@@ -55,14 +62,16 @@ if __name__ == '__main__':
 
             info_path = f'{data_dir}/{num}/input'
 
-            tenFirst = torch.FloatTensor(numpy.ascontiguousarray(cv2.imread(filename=f'{info_path}/frame10.png', flags=-1).transpose(2, 0, 1)[None, :, :, :].astype(numpy.float32) * (1.0 / 255.0))).cuda()
-            tenSecond = torch.FloatTensor(numpy.ascontiguousarray(cv2.imread(filename=f'{info_path}/frame11.png', flags=-1).transpose(2, 0, 1)[None, :, :, :].astype(numpy.float32) * (1.0 / 255.0))).cuda()
+            #tenFirst = torch.FloatTensor(numpy.ascontiguousarray(cv2.imread(filename=f'{info_path}/frame10.png', flags=-1).transpose(2, 0, 1)[None, :, :, :].astype(numpy.float32) * (1.0 / 255.0))).cuda()
+            #tenSecond = torch.FloatTensor(numpy.ascontiguousarray(cv2.imread(filename=f'{info_path}/frame11.png', flags=-1).transpose(2, 0, 1)[None, :, :, :].astype(numpy.float32) * (1.0 / 255.0))).cuda()
             tenFlow01 = torch.FloatTensor(numpy.ascontiguousarray(read_flo(f'{info_path}/flow01.flo').transpose(2, 0, 1)[None, :, :, :])).cuda()
             tenFlow10 = torch.FloatTensor(numpy.ascontiguousarray(read_flo(f'{info_path}/flow10.flo').transpose(2, 0, 1)[None, :, :, :])).cuda()
             depth0,_ = read_pfm(f'{info_path}/frame10.pfm')
             depth1,_ = read_pfm(f'{info_path}/frame11.pfm')
-
-            img = warp.image_generate(0.5, tenFirst, tenSecond, tenFlow01, tenFlow10, depth0, depth1)
+            frame_0 = f'{info_path}/frame10.png'
+            frame_1 = f'{info_path}/frame11.png'
+            
+            img = warp.image_generate(0.5, frame_0, frame_1, tenFlow01, tenFlow10, depth0, depth1, RRIN, hole_fill=True, frame_refinement= True)
             cv2.imwrite(f'{task_dir}/{num}/frame10i11.jpg', img, [int(cv2.IMWRITE_JPEG_QUALITY), 100])
         print("task 0 finish.")
 
@@ -82,15 +91,17 @@ if __name__ == '__main__':
 
                 info_path = f'{data_dir}/{outer}/{inner}/input'
                 start = inner*8
-                tenFirst = torch.FloatTensor(numpy.ascontiguousarray(cv2.imread(filename=f'{info_path}/{str(start).zfill(5)}.jpg', flags=-1).transpose(2, 0, 1)[None, :, :, :].astype(numpy.float32) * (1.0 / 255.0))).cuda()
-                tenSecond = torch.FloatTensor(numpy.ascontiguousarray(cv2.imread(filename=f'{info_path}/{str(start+8).zfill(5)}.jpg', flags=-1).transpose(2, 0, 1)[None, :, :, :].astype(numpy.float32) * (1.0 / 255.0))).cuda()
+                #tenFirst = torch.FloatTensor(numpy.ascontiguousarray(cv2.imread(filename=f'{info_path}/{str(start).zfill(5)}.jpg', flags=-1).transpose(2, 0, 1)[None, :, :, :].astype(numpy.float32) * (1.0 / 255.0))).cuda()
+                #tenSecond = torch.FloatTensor(numpy.ascontiguousarray(cv2.imread(filename=f'{info_path}/{str(start+8).zfill(5)}.jpg', flags=-1).transpose(2, 0, 1)[None, :, :, :].astype(numpy.float32) * (1.0 / 255.0))).cuda()
                 tenFlow01 = torch.FloatTensor(numpy.ascontiguousarray(read_flo(f'{info_path}/flow01.flo').transpose(2, 0, 1)[None, :, :, :])).cuda()
                 tenFlow10 = torch.FloatTensor(numpy.ascontiguousarray(read_flo(f'{info_path}/flow10.flo').transpose(2, 0, 1)[None, :, :, :])).cuda()
                 depth0,_ = read_pfm(f'{info_path}/{str(start).zfill(5)}.pfm')
                 depth1,_ = read_pfm(f'{info_path}/{str(start+8).zfill(5)}.pfm')
-            
+                frame_0 = f'{info_path}/{str(start).zfill(5)}.jpg'
+                frame_1 = f'{info_path}/{str(start+8).zfill(5)}.jpg'
+                
                 for stamp in range(1,8):
-                    img = warp.image_generate(stamp/8, tenFirst, tenSecond, tenFlow01, tenFlow10, depth0, depth1)
+                    img = warp.image_generate(stamp/8, frame_0, frame_1, tenFlow01, tenFlow10, depth0, depth1, RRIN, hole_fill=True, frame_refinement= False)
                     cv2.imwrite(f'{task_dir}/{outer}/{inner}/{str(start+stamp).zfill(5)}.jpg', img, [int(cv2.IMWRITE_JPEG_QUALITY), 100])
             print(f"subtask 1-{outer} finish.")
         print("task 1 finish.")
@@ -110,15 +121,17 @@ if __name__ == '__main__':
 
                 info_path = f'{data_dir}/{outer}/{inner}/input'
                 start = inner*10
-                tenFirst = torch.FloatTensor(numpy.ascontiguousarray(cv2.imread(filename=f'{info_path}/{str(start).zfill(5)}.jpg', flags=-1).transpose(2, 0, 1)[None, :, :, :].astype(numpy.float32) * (1.0 / 255.0))).cuda()
-                tenSecond = torch.FloatTensor(numpy.ascontiguousarray(cv2.imread(filename=f'{info_path}/{str(start+10).zfill(5)}.jpg', flags=-1).transpose(2, 0, 1)[None, :, :, :].astype(numpy.float32) * (1.0 / 255.0))).cuda()
+                #tenFirst = torch.FloatTensor(numpy.ascontiguousarray(cv2.imread(filename=f'{info_path}/{str(start).zfill(5)}.jpg', flags=-1).transpose(2, 0, 1)[None, :, :, :].astype(numpy.float32) * (1.0 / 255.0))).cuda()
+                #tenSecond = torch.FloatTensor(numpy.ascontiguousarray(cv2.imread(filename=f'{info_path}/{str(start+10).zfill(5)}.jpg', flags=-1).transpose(2, 0, 1)[None, :, :, :].astype(numpy.float32) * (1.0 / 255.0))).cuda()
                 tenFlow01 = torch.FloatTensor(numpy.ascontiguousarray(read_flo(f'{info_path}/flow01.flo').transpose(2, 0, 1)[None, :, :, :])).cuda()
                 tenFlow10 = torch.FloatTensor(numpy.ascontiguousarray(read_flo(f'{info_path}/flow10.flo').transpose(2, 0, 1)[None, :, :, :])).cuda()
                 depth0,_ = read_pfm(f'{info_path}/{str(start).zfill(5)}.pfm')
                 depth1,_ = read_pfm(f'{info_path}/{str(start+10).zfill(5)}.pfm')
-
+                frame_0 = f'{info_path}/{str(start).zfill(5)}.jpg'
+                frame_1 = f'{info_path}/{str(start+10).zfill(5)}.jpg'
+                
                 for stamp in [4-start%4, 8-start%4]:
-                    img = warp.image_generate(stamp/10, tenFirst, tenSecond, tenFlow01, tenFlow10, depth0, depth1)
+                    img = warp.image_generate(stamp/10, frame_0, frame_1, tenFlow01, tenFlow10, depth0, depth1, RRIN, hole_fill=True, frame_refinement= False)
                     cv2.imwrite(f'{task_dir}/{outer}/{inner}/{str(start+stamp).zfill(5)}.jpg', img, [int(cv2.IMWRITE_JPEG_QUALITY), 100])
             print(f"subtask 2-{outer} finish.")
         print("task 2 finish.")
