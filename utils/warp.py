@@ -40,26 +40,26 @@ def backwarp_map(flowt0, flowt1, tenFirst, tenSecond):
 def image_generate(fltTime, tenFirst, tenSecond, tenFlow01, tenFlow10, depth0, depth1, Net = None, hole_fill=True, frame_refinement = True):
     depth0 = torch.from_numpy(depth0.copy()).unsqueeze(0).unsqueeze(0).cuda()
     depth1 = torch.from_numpy(depth1.copy()).unsqueeze(0).unsqueeze(0).cuda()
-    
+    kernel = numpy.ones((3,3), numpy.uint8)
     ###################### Range Map0 ##############################
     Occlusion_map0 = range_map(tenFlow10)
+    Occlusion_map0 = cv2.morphologyEx(Occlusion_map0.astype(numpy.uint8), cv2.MORPH_CLOSE, kernel)
     tenFlow01_new = tenFlow01.cpu().numpy()
     tenFlow01_new =  torch.from_numpy(numpy.where(Occlusion_map0, 0, tenFlow01_new)).cuda()
     tenFirst_new = tenFirst.cpu().numpy()
     tenFirst_new =  torch.from_numpy(numpy.where(Occlusion_map0, 0, tenFirst_new)).cuda()
-    #tenFlow01 = tenFlow01_new
     ################################################################
     ###################### Range Map1 ##############################
     Occlusion_map1 = range_map(tenFlow01)
+    Occlusion_map1 = cv2.morphologyEx(Occlusion_map1.astype(numpy.uint8), cv2.MORPH_CLOSE, kernel)
     tenFlow10_new = tenFlow10.cpu().numpy()
     tenFlow10_new =  torch.from_numpy(numpy.where(Occlusion_map1, 0, tenFlow10_new)).cuda()
     tenSecond_new = tenSecond.cpu().numpy()
     tenSecond_new =  torch.from_numpy(numpy.where(Occlusion_map0, 0, tenSecond_new)).cuda()
-    #tenFlow10 = tenFlow10_new
     ################################################################
     
     #################### Metric Calculate ##########################
-    tenMetric = torch.nn.functional.l1_loss(input=tenFirst, target=backwarp(tenInput=tenSecond, tenFlow=tenFlow01), reduction='none').mean(1, True)
+    tenMetric = torch.nn.functional.l1_loss(input=tenFirst, target=backwarp(tenInput=tenSecond, tenFlow=tenFlow01_new), reduction='none').mean(1, True)
     ######################## Flowt0 ################################
     flowt0 = -softsplat.FunctionSoftsplat(tenInput=tenFlow01_new, tenFlow=tenFlow01_new * fltTime, tenMetric=1/depth0, strType='linear')[0, :, :, :].cpu().numpy()
     ################################################################
@@ -69,7 +69,7 @@ def image_generate(fltTime, tenFirst, tenSecond, tenFlow01, tenFlow10, depth0, d
     ################################################################
     
     #################### Metric Calculate ##########################
-    tenMetric = torch.nn.functional.l1_loss(input=tenSecond, target=backwarp(tenInput=tenFirst, tenFlow=tenFlow10), reduction='none').mean(1, True)
+    tenMetric = torch.nn.functional.l1_loss(input=tenSecond, target=backwarp(tenInput=tenFirst, tenFlow=tenFlow10_new), reduction='none').mean(1, True)
     ######################## Flowt1 ################################
     flowt1 = -softsplat.FunctionSoftsplat(tenInput=tenFlow10_new, tenFlow=tenFlow10_new * (1-fltTime), tenMetric=1/depth1, strType='linear')[0, :, :, :].cpu().numpy()
     ################################################################
@@ -82,7 +82,6 @@ def image_generate(fltTime, tenFirst, tenSecond, tenFlow01, tenFlow10, depth0, d
     backwardimgt0, backwardimgt1 = backwarp_map(flowt0, flowt1, tenFirst, tenSecond)
     Hole01 = numpy.where((tenSoftmax01[0,:,:]==0)|(tenSoftmax01[1,:,:]==0)|(tenSoftmax01[2,:,:]==0), 1, 0).astype(numpy.uint8)
     Hole10 = numpy.where((tenSoftmax10[0,:,:]==0)|(tenSoftmax10[1,:,:]==0)|(tenSoftmax10[2,:,:]==0), 1, 0).astype(numpy.uint8)
-    kernel = numpy.ones((3,3), numpy.uint8)
     #Hole01 = cv2.dilate(Hole01, kernel, iterations = 1)
     Hole01 = cv2.morphologyEx(Hole01, cv2.MORPH_CLOSE, kernel)
     #Hole10 = cv2.dilate(Hole10, kernel, iterations = 1)
@@ -122,7 +121,7 @@ def range_map(flow):
     src_map = torch.ones((1,1,h,w)).cuda()
     dst_map = softsplat.FunctionSoftsplat(tenInput=src_map, tenFlow=flow, tenMetric=None, strType='average')[0,0,:,:].cpu().numpy()
     
-    Occlusion_map = numpy.where(dst_map==0, True, False)
+    Occlusion_map = numpy.where(dst_map==0, 1, 0)
     return Occlusion_map
 
 def inter_frame_preprocess(intermediate, isTensor = False):
