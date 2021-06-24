@@ -18,8 +18,10 @@ def backwarp(tenInput, tenFlow):
 
 def backwarp_map(flowt0, flowt1, tenFirst, tenSecond):
     img = []
+    hole_map = []
     for flow, data in [(flowt0, tenFirst), (flowt1, tenSecond)]:
         hole = numpy.where((flow[0,:,:]==0)&(flow[1,:,:]==0), True, False)
+        hole_map.append(hole)
         pad_flow = numpy.pad(flow, ((0,),(1,),(1,)), 'constant')
         weight = numpy.where((pad_flow[0,0:-2,1:-1]!=0)|(pad_flow[1,0:-2,1:-1]!=0), 1, 0) + \
              numpy.where((pad_flow[0,2:,1:-1]!=0)|(pad_flow[1,2:,1:-1]!=0), 1, 0) + \
@@ -34,7 +36,7 @@ def backwarp_map(flowt0, flowt1, tenFirst, tenSecond):
         flow[1,:,:] += numpy.arange(flow.shape[1])[:,numpy.newaxis]
         img.append(cv2.remap(data.cpu().numpy().squeeze().transpose(1,2,0).astype(numpy.float32), flow.transpose(1,2,0).astype(numpy.float32), None, cv2.INTER_LINEAR).transpose(2,0,1))
         
-    return img
+    return img, hole_map
 
 
 def image_generate(fltTime, tenFirst, tenSecond, tenFlow01, tenFlow10, depth0, depth1, Net = None, hole_fill=True, frame_refinement = True):
@@ -45,47 +47,47 @@ def image_generate(fltTime, tenFirst, tenSecond, tenFlow01, tenFlow10, depth0, d
     Occlusion_map0 = range_map(tenFlow10)
     Occlusion_map0 = cv2.morphologyEx(Occlusion_map0.astype(numpy.uint8), cv2.MORPH_CLOSE, kernel)
     tenFlow01_new = tenFlow01.cpu().numpy()
-    tenFlow01_new =  torch.from_numpy(numpy.where(Occlusion_map0, 0, tenFlow01_new)).cuda()
+    tenFlow01_new =  torch.from_numpy(numpy.where(Occlusion_map0==1, 0, tenFlow01_new)).cuda()
     tenFirst_new = tenFirst.cpu().numpy()
-    tenFirst_new =  torch.from_numpy(numpy.where(Occlusion_map0, 0, tenFirst_new)).cuda()
+    tenFirst_new =  torch.from_numpy(numpy.where(Occlusion_map0==1, 0, tenFirst_new)).cuda()
     ################################################################
     ###################### Range Map1 ##############################
     Occlusion_map1 = range_map(tenFlow01)
     Occlusion_map1 = cv2.morphologyEx(Occlusion_map1.astype(numpy.uint8), cv2.MORPH_CLOSE, kernel)
     tenFlow10_new = tenFlow10.cpu().numpy()
-    tenFlow10_new =  torch.from_numpy(numpy.where(Occlusion_map1, 0, tenFlow10_new)).cuda()
+    tenFlow10_new =  torch.from_numpy(numpy.where(Occlusion_map1==1, 0, tenFlow10_new)).cuda()
     tenSecond_new = tenSecond.cpu().numpy()
-    tenSecond_new =  torch.from_numpy(numpy.where(Occlusion_map0, 0, tenSecond_new)).cuda()
+    tenSecond_new =  torch.from_numpy(numpy.where(Occlusion_map1==1, 0, tenSecond_new)).cuda()
     ################################################################
     
     #################### Metric Calculate ##########################
     tenMetric = torch.nn.functional.l1_loss(input=tenFirst, target=backwarp(tenInput=tenSecond, tenFlow=tenFlow01_new), reduction='none').mean(1, True)
     ######################## Flowt0 ################################
-    flowt0 = -softsplat.FunctionSoftsplat(tenInput=tenFlow01_new, tenFlow=tenFlow01_new * fltTime, tenMetric=1/depth0, strType='linear')[0, :, :, :].cpu().numpy()
+    flowt0 = -softsplat.FunctionSoftsplat(tenInput=tenFlow01_new, tenFlow=tenFlow01_new * fltTime, tenMetric=-5.0*tenMetric-0.1*depth0, strType='softmax')[0, :, :, :].cpu().numpy()
     ################################################################
     ################## Forward Warping Image #######################
-    tenSoftmax01 = softsplat.FunctionSoftsplat(tenInput=tenFirst, tenFlow=tenFlow01 * fltTime, tenMetric=-8.0 * tenMetric, strType='softmax') # -20.0 is a hyperparameter, called 'alpha' in the paper, that could be learned using a torch.Parameter
+    tenSoftmax01 = softsplat.FunctionSoftsplat(tenInput=tenFirst, tenFlow=tenFlow01 * fltTime, tenMetric=-5.0*tenMetric-0.1*depth0, strType='softmax') # -20.0 is a hyperparameter, called 'alpha' in the paper, that could be learned using a torch.Parameter
     tenSoftmax01 = tenSoftmax01[0, :, :, :].cpu().numpy()
     ################################################################
     
     #################### Metric Calculate ##########################
     tenMetric = torch.nn.functional.l1_loss(input=tenSecond, target=backwarp(tenInput=tenFirst, tenFlow=tenFlow10_new), reduction='none').mean(1, True)
     ######################## Flowt1 ################################
-    flowt1 = -softsplat.FunctionSoftsplat(tenInput=tenFlow10_new, tenFlow=tenFlow10_new * (1-fltTime), tenMetric=1/depth1, strType='linear')[0, :, :, :].cpu().numpy()
+    flowt1 = -softsplat.FunctionSoftsplat(tenInput=tenFlow10_new, tenFlow=tenFlow10_new * (1-fltTime), tenMetric=-5.0*tenMetric-0.1*depth1, strType='softmax')[0, :, :, :].cpu().numpy()
     ################################################################
     ################## Forward Warping Image #######################
-    tenSoftmax10 = softsplat.FunctionSoftsplat(tenInput=tenSecond, tenFlow=tenFlow10 * (1-fltTime), tenMetric=-8.0 * tenMetric, strType='softmax')
+    tenSoftmax10 = softsplat.FunctionSoftsplat(tenInput=tenSecond, tenFlow=tenFlow10 * (1-fltTime), tenMetric=-5.0*tenMetric-0.1*depth1, strType='softmax')
     tenSoftmax10 = tenSoftmax10[0, :, :, :].cpu().numpy()
     ################################################################
 
     ################# Cal backwarp and hole ########################
-    backwardimgt0, backwardimgt1 = backwarp_map(flowt0, flowt1, tenFirst, tenSecond)
+    (backwardimgt0, backwardimgt1), (bkdhole0, bkdhole1) = backwarp_map(flowt0, flowt1, tenFirst, tenSecond)
     Hole01 = numpy.where((tenSoftmax01[0,:,:]==0)|(tenSoftmax01[1,:,:]==0)|(tenSoftmax01[2,:,:]==0), 1, 0).astype(numpy.uint8)
     Hole10 = numpy.where((tenSoftmax10[0,:,:]==0)|(tenSoftmax10[1,:,:]==0)|(tenSoftmax10[2,:,:]==0), 1, 0).astype(numpy.uint8)
     #Hole01 = cv2.dilate(Hole01, kernel, iterations = 1)
-    Hole01 = cv2.morphologyEx(Hole01, cv2.MORPH_CLOSE, kernel)
+    #Hole01 = cv2.morphologyEx(Hole01, cv2.MORPH_CLOSE, kernel)
     #Hole10 = cv2.dilate(Hole10, kernel, iterations = 1)
-    Hole10 = cv2.morphologyEx(Hole10, cv2.MORPH_CLOSE, kernel)
+    #Hole10 = cv2.morphologyEx(Hole10, cv2.MORPH_CLOSE, kernel)
     Hole = Hole01 & Hole10
     Hole = cv2.morphologyEx(Hole, cv2.MORPH_CLOSE, kernel)
     ################################################################
@@ -96,7 +98,9 @@ def image_generate(fltTime, tenFirst, tenSecond, tenFlow01, tenFlow10, depth0, d
     tenSoftmax = numpy.where(Hole10==1, tenSoftmax01, (tenSoftmax01_mod*a1+tenSoftmax10*a2))
     ######################## Final Image ###########################
     if hole_fill:
-        tenSoftmax = numpy.where(Hole, (backwardimgt0*a1+backwardimgt1*a2), tenSoftmax)
+        #backwardimg = numpy.where(bkdhole0, backwardimgt1, backwardimgt0)
+        #backwardimg = numpy.where(bkdhole1, backwardimgt0, backwardimg*a1+backwardimgt1*a2)
+        tenSoftmax = numpy.where(Hole, backwardimgt0*a1+backwardimgt1*a2, tenSoftmax)
     ################################################################
     if frame_refinement:
         H = tenSoftmax.shape[1]
