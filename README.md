@@ -1,10 +1,6 @@
 # Computer Vision Project for Frame Interpolation
 This is the project content of frame interpolation. Now we are implementing the paper [Softmax Splatting for Video Frame Interpolation](https://openaccess.thecvf.com/content_CVPR_2020/papers/Niklaus_Softmax_Splatting_for_Video_Frame_Interpolation_CVPR_2020_paper.pdf) [1]. We'll try various techniques to improve the quality of output frames.
 
-You can click the picture below to access the notion website.
-
-<a href="https://www.notion.so/Docs-c14e1d54b44c4482a1c8f4138e2b108e"><img src="https://i.ibb.co/WHNFnS3/2021-06-11-9-09-19.png" width="50%" alt="2021-06-11-8-16-55" border="0"></a>
-
 ## setup
 The following packages need to be installed:
 
